@@ -1,5 +1,5 @@
-// TaskCard.jsx
-// Responsabilidad única: representar visualmente una tarea individual
+﻿// TaskCard.jsx
+// Responsabilidad unica: representar visualmente una tarea individual
 // y traducir las interacciones del usuario (click, timer) en llamadas
 // a los callbacks recibidos por props. No importa useTasks ni Firestore.
 
@@ -18,7 +18,7 @@ const STATUS_LABELS = {
   completed: "Completada",
 };
 
-export default function TaskCard({ task, onToggleStatus, onDelete, onAddTime }) {
+export default function TaskCard({ task, onToggleStatus, onDelete, onAddTime, onEdit }) {
   const isCompleted = task.status === "completed";
 
   return (
@@ -37,7 +37,7 @@ export default function TaskCard({ task, onToggleStatus, onDelete, onAddTime }) 
       )}
 
       {task.attachmentUrl && (
-        <a
+        
           href={task.attachmentUrl}
           target="_blank"
           rel="noopener noreferrer"
@@ -60,9 +60,16 @@ export default function TaskCard({ task, onToggleStatus, onDelete, onAddTime }) 
         <button
           type="button"
           className="btn-secondary"
+          onClick={onEdit}
+        >
+          ✏ Editar
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
           onClick={onToggleStatus}
         >
-          {isCompleted ? "Reabrir" : "Marcar completada"}
+          {isCompleted ? "Reabrir" : "Completar"}
         </button>
         <button
           type="button"

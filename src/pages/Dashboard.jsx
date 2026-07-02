@@ -1,7 +1,7 @@
-// Dashboard.jsx
-// Responsabilidad única: renderizar la vista principal de gestión de
+﻿// Dashboard.jsx
+// Responsabilidad unica: renderizar la vista principal de gestion de
 // tareas, consumiendo exclusivamente el hook useTasks para datos y
-// lógica de negocio. Este componente NO contiene llamadas directas
+// logica de negocio. Este componente NO contiene llamadas directas
 // a Firestore (Arquitectura Limpia: la UI solo orquesta, no accede a datos).
 
 import { useState, useMemo } from "react";
@@ -13,8 +13,6 @@ import ReportExport from "../components/tasks/ReportExport";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import Swal from "sweetalert2";
 
-// Filtros disponibles para la barra de estado, centralizados aquí
-// para no repetir strings mágicos en el JSX.
 const STATUS_FILTERS = [
   { value: "all", label: "Todas" },
   { value: "pending", label: "Pendientes" },
@@ -29,25 +27,21 @@ export default function Dashboard() {
     loading,
     error,
     createTask,
+    updateTask,
     deleteTask,
     toggleTaskStatus,
     addTimeToTask,
   } = useTasks();
 
-  // Estado local de UI (no de negocio): controla el filtro activo
-  // y la visibilidad del formulario de creación.
   const [activeFilter, setActiveFilter] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
-  // useMemo evita recalcular el filtrado en cada render si tasks
-  // y activeFilter no han cambiado (optimización de rendimiento
-  // relevante al usar onSnapshot, que puede disparar renders frecuentes).
   const filteredTasks = useMemo(() => {
     if (activeFilter === "all") return tasks;
     return tasks.filter((task) => task.status === activeFilter);
   }, [tasks, activeFilter]);
 
-  // Métricas rápidas mostradas en las tarjetas superiores del dashboard.
   const stats = useMemo(() => {
     const total = tasks.length;
     const completed = tasks.filter((t) => t.status === "completed").length;
@@ -58,36 +52,59 @@ export default function Dashboard() {
     return { total, completed, totalHours: (totalSeconds / 3600).toFixed(1) };
   }, [tasks]);
 
-  // Handler de creación: delega en useTasks y maneja feedback de UI
-  // con sweetalert2, manteniendo el hook libre de dependencias de UI.
-  const handleCreateTask = async (taskData) => {
+  const handleOpenCreateForm = () => {
+    setEditingTask(null);
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEditForm = (task) => {
+    setEditingTask(task);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingTask(null);
+  };
+
+  const handleSaveTask = async (taskData) => {
     try {
-      await createTask(taskData);
-      setIsFormOpen(false);
-      Swal.fire({
-        icon: "success",
-        title: "Tarea creada",
-        toast: true,
-        position: "top-end",
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      if (editingTask) {
+        await updateTask(editingTask.id, taskData);
+        Swal.fire({
+          icon: "success",
+          title: "Tarea actualizada",
+          toast: true,
+          position: "top-end",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        await createTask(taskData);
+        Swal.fire({
+          icon: "success",
+          title: "Tarea creada",
+          toast: true,
+          position: "top-end",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      }
+      handleCloseForm();
     } catch (err) {
       Swal.fire({
         icon: "error",
-        title: "No se pudo crear la tarea",
+        title: editingTask ? "No se pudo actualizar la tarea" : "No se pudo crear la tarea",
         text: err.message,
       });
     }
   };
 
-  // Handler de borrado con confirmación previa, evitando eliminaciones
-  // accidentales desde TaskCard.
   const handleDeleteTask = async (taskId) => {
     const result = await Swal.fire({
       icon: "warning",
       title: "¿Eliminar esta tarea?",
-      text: "Esta acción no se puede deshacer.",
+      text: "Esta accion no se puede deshacer.",
       showCancelButton: true,
       confirmButtonText: "Eliminar",
       cancelButtonText: "Cancelar",
@@ -106,7 +123,7 @@ export default function Dashboard() {
     try {
       await logout();
     } catch (err) {
-      Swal.fire({ icon: "error", title: "Error al cerrar sesión", text: err.message });
+      Swal.fire({ icon: "error", title: "Error al cerrar sesion", text: err.message });
     }
   };
 
@@ -125,13 +142,13 @@ export default function Dashboard() {
           </p>
         </div>
         <button className="btn-secondary" onClick={handleLogout}>
-          Cerrar sesión
+          Cerrar sesion
         </button>
       </header>
 
       {error && (
         <div className="glass-container error-banner">
-          Ocurrió un error al sincronizar tus tareas: {error}
+          Ocurrio un error al sincronizar tus tareas: {error}
         </div>
       )}
 
@@ -154,7 +171,7 @@ export default function Dashboard() {
           <ReportExport tasks={tasks} />
           <button
             className="btn-primary"
-            onClick={() => setIsFormOpen((prev) => !prev)}
+            onClick={isFormOpen ? handleCloseForm : handleOpenCreateForm}
           >
             {isFormOpen ? "Cancelar" : "+ Nueva tarea"}
           </button>
@@ -163,7 +180,14 @@ export default function Dashboard() {
 
       {isFormOpen && (
         <section className="glass-container">
-          <TaskForm onSubmit={handleCreateTask} />
+          <h2 className="form-section-title">
+            {editingTask ? "Editar tarea" : "Nueva tarea"}
+          </h2>
+          <TaskForm
+            key={editingTask?.id ?? "new"}
+            initialData={editingTask}
+            onSubmit={handleSaveTask}
+          />
         </section>
       )}
 
@@ -180,6 +204,7 @@ export default function Dashboard() {
               onToggleStatus={() => toggleTaskStatus(task.id, task.status)}
               onDelete={() => handleDeleteTask(task.id)}
               onAddTime={(seconds) => addTimeToTask(task.id, seconds)}
+              onEdit={() => handleOpenEditForm(task)}
             />
           ))
         )}

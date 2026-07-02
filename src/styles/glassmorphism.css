@@ -164,3 +164,8 @@
     transform: rotate(360deg);
   }
 }
+
+.form-section-title {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
